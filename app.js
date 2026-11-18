@@ -19,10 +19,59 @@ const emptyProgress = {
   studyMinutes: 0,
 };
 
+const validLessonIds = new Set(Object.keys(lessons));
+const validWordIds = new Set(Object.values(lessons).flatMap((lesson) => lesson.vocabulary.map((word) => word.word)));
+const validWordStatuses = new Set(["learning", "known", "difficult"]);
+
+function validCount(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
 function readProgress() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (stored && typeof stored === "object") return { ...emptyProgress, ...stored };
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return { ...emptyProgress };
+
+    const answers = validCount(stored.answers);
+    const completedLessons = Array.isArray(stored.completedLessons)
+      ? [...new Set(stored.completedLessons.filter((id) => typeof id === "string" && validLessonIds.has(id)))]
+      : [];
+    const visitedLessons = Array.isArray(stored.visitedLessons)
+      ? [...new Set(stored.visitedLessons.filter((id) => typeof id === "string" && validLessonIds.has(id)))]
+      : [];
+    const words = stored.words && typeof stored.words === "object" && !Array.isArray(stored.words)
+      ? Object.fromEntries(Object.entries(stored.words).filter(([word, status]) => validWordIds.has(word) && validWordStatuses.has(status)))
+      : {};
+    const reviewItems = {};
+    if (stored.reviewItems && typeof stored.reviewItems === "object" && !Array.isArray(stored.reviewItems)) {
+      Object.entries(stored.reviewItems).forEach(([lessonId, item]) => {
+        if (
+          validLessonIds.has(lessonId)
+          && item
+          && typeof item === "object"
+          && item.lessonId === lessonId
+          && Number.isSafeInteger(item.dueAt)
+          && item.dueAt >= 0
+        ) {
+          reviewItems[lessonId] = {
+            lessonId,
+            attempts: validCount(item.attempts),
+            correctStreak: validCount(item.correctStreak),
+            dueAt: item.dueAt,
+          };
+        }
+      });
+    }
+
+    return {
+      completedLessons,
+      visitedLessons,
+      words,
+      reviewItems,
+      answers,
+      correctAnswers: Math.min(validCount(stored.correctAnswers), answers),
+      studyMinutes: validCount(stored.studyMinutes),
+    };
   } catch {
     // A corrupted or unavailable local save should not prevent studying.
   }
@@ -153,9 +202,9 @@ function renderDashboard() {
         <article class="stat-card">
           <span class="stat-icon mint" aria-hidden="true">↗</span>
           <p>Progresso del percorso</p>
-          <strong>${percent}<small>%</small></strong>
-          <div class="mini-progress"><span style="width:${percent}%"></span></div>
-          <span class="stat-caption">${completed} di ${totalLessons} lezioni completate</span>
+          <strong>${escapeHtml(percent)}<small>%</small></strong>
+          <div class="mini-progress"><span style="width:${escapeHtml(percent)}%"></span></div>
+          <span class="stat-caption">${escapeHtml(completed)} di ${totalLessons} lezioni completate</span>
         </article>
         <article class="stat-card">
           <span class="stat-icon lavender" aria-hidden="true">▤</span>
@@ -166,14 +215,14 @@ function renderDashboard() {
         <article class="stat-card">
           <span class="stat-icon peach" aria-hidden="true">◷</span>
           <p>Tempo di studio</p>
-          <strong>${progress.studyMinutes}<small> min</small></strong>
+          <strong>${escapeHtml(progress.studyMinutes)}<small> min</small></strong>
           <span class="stat-caption">Ogni minuto conta</span>
         </article>
         <article class="stat-card">
           <span class="stat-icon butter" aria-hidden="true">✓</span>
           <p>Risposte corrette</p>
-          <strong>${accuracy}<small>%</small></strong>
-          <span class="stat-caption">${progress.correctAnswers} di ${progress.answers} risposte corrette</span>
+          <strong>${escapeHtml(accuracy)}<small>%</small></strong>
+          <span class="stat-caption">${escapeHtml(progress.correctAnswers)} di ${escapeHtml(progress.answers)} risposte corrette</span>
         </article>
       </section>
 
@@ -275,7 +324,8 @@ function renderLesson(lessonId, mode = "lesson") {
           <section class="lesson-section"><span class="lesson-step">01</span><div><h2>Partiamo dal significato</h2><p>${escapeHtml(lesson.explanation)}</p></div></section>
           <section class="lesson-section"><span class="lesson-step">02</span><div><h2>Parole e concetti nuovi</h2><p class="section-intro">Non solo traduzioni: scopri come funziona ogni parola.</p>
             <div class="vocab-lesson-list">${lesson.vocabulary.map((word) => {
-              const status = progress.words[word.word] || "learning";
+              const savedStatus = progress.words[word.word];
+              const status = validWordStatuses.has(savedStatus) ? savedStatus : "learning";
               return `<article class="vocab-lesson-item">
                 <div class="vocab-word-title"><strong lang="fr">${escapeHtml(word.word)}</strong><span>${escapeHtml(word.category)}${word.gender ? ` · ${escapeHtml(word.gender)}` : ""}</span></div>
                 <div class="vocab-word-definition"><span>${escapeHtml(word.translation)}</span><span lang="fr" class="ipa">${escapeHtml(word.ipa)}</span>${word.plural ? `<small>Plurale: <span lang="fr">${escapeHtml(word.plural)}</span></small>` : ""}${word.example ? `<small><span lang="fr">${escapeHtml(word.example)}</span> — ${escapeHtml(word.exampleTranslation)}</small>` : ""}${word.note ? `<small>${escapeHtml(word.note)}</small>` : ""}</div>
@@ -335,7 +385,7 @@ function renderVocabulary() {
       ${words.length ? `<div class="vocabulary-grid">${words.map((word) => {
         const status = progress.words[word.word] || "learning";
         const labels = { learning: "Da imparare", known: "La conosco", difficult: "Difficile" };
-        return `<article class="vocabulary-card panel"><div class="vocab-card-heading"><div><h2 lang="fr">${escapeHtml(word.word)}</h2><span class="vocab-category">${escapeHtml(word.category)}${word.gender ? ` · ${escapeHtml(word.gender)}` : ""}</span></div><span class="vocab-status-tag status-${status}">${labels[status]}</span></div>
+        return `<article class="vocabulary-card panel"><div class="vocab-card-heading"><div><h2 lang="fr">${escapeHtml(word.word)}</h2><span class="vocab-category">${escapeHtml(word.category)}${word.gender ? ` · ${escapeHtml(word.gender)}` : ""}</span></div><span class="vocab-status-tag status-${escapeHtml(status)}">${labels[status]}</span></div>
           <p class="vocab-translation">${escapeHtml(word.translation)}</p><p class="ipa" lang="fr">${escapeHtml(word.ipa)}</p>
           ${word.plural ? `<p class="vocab-detail">Plurale: <span lang="fr">${escapeHtml(word.plural)}</span></p>` : ""}
           ${word.example ? `<p class="vocab-example"><span lang="fr">${escapeHtml(word.example)}</span><br /><small>${escapeHtml(word.exampleTranslation)}</small></p>` : ""}
