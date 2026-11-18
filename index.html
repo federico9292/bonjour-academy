@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="it" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Un percorso guidato per imparare il francese, dalle prime parole alle conversazioni quotidiane."
+    />
+    <meta name="theme-color" content="#f7f8f6" />
+    <link rel="icon" href="data:," />
+    <title>Bonjour — Il tuo percorso di francese</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigazione principale">
+        <a class="brand" href="#dashboard" aria-label="Bonjour, vai alla dashboard">
+          <span class="brand-mark" aria-hidden="true">b.</span>
+          <span>bonjour<span class="brand-period">.</span></span>
+        </a>
+        <p class="sidebar-label">IL TUO SPAZIO</p>
+        <nav class="main-nav">
+          <a href="#dashboard" data-view="dashboard" class="nav-link active">
+            <span class="nav-icon" aria-hidden="true">⌂</span> Panoramica
+          </a>
+          <a href="#percorso" data-view="course" class="nav-link">
+            <span class="nav-icon" aria-hidden="true">◷</span> Il percorso
+          </a>
+          <a href="#ripasso" data-view="review" class="nav-link">
+            <span class="nav-icon" aria-hidden="true">↻</span> Ripasso
+            <span class="nav-count" id="review-count">0</span>
+          </a>
+          <a href="#vocabolario" data-view="vocabulary" class="nav-link">
+            <span class="nav-icon" aria-hidden="true">▤</span> Vocabolario
+          </a>
+          <a href="#allenamento" data-view="practice" class="nav-link">
+            <span class="nav-icon" aria-hidden="true">✳</span> Allenamento libero
+          </a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="streak-card">
+            <span class="streak-flower" aria-hidden="true">✿</span>
+            <div>
+              <strong>Un passo alla volta</strong>
+              <p>La costanza fa la differenza.</p>
+            </div>
+          </div>
+          <p class="sidebar-footnote">Fatto con cura, per chi parte da zero.</p>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb"><span>Il mio spazio</span><span aria-hidden="true">/</span><strong id="page-name">Panoramica</strong></div>
+          <div class="topbar-actions">
+            <button class="topbar-theme" id="theme-toggle" type="button" aria-label="Cambia tema">
+              <span id="theme-icon" aria-hidden="true">☾</span> <span id="theme-label">Tema scuro</span>
+            </button>
+            <span class="level-pill"><span aria-hidden="true">✦</span> Principiante · A0</span>
+            <button class="avatar" type="button" aria-label="Profilo utente">F</button>
+          </div>
+        </header>
+        <div id="app" tabindex="-1"></div>
+        <div id="announcements" class="sr-only" aria-live="polite"></div>
+      </main>
+    </div>
+  </body>
+</html>
